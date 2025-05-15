@@ -1,0 +1,94 @@
+import requests
+import json
+import random
+from getpass import getpass
+
+# ──────────────── Configuration ──────────────── #
+INSTANCE = "dev222153"  # Replace with your instance ID
+URL = f"https://{INSTANCE}.service-now.com/api/now/table/incident"
+USER = input("Enter your ServiceNow username (e.g. admin): ")
+PWD = getpass("Enter your ServiceNow password: ")
+
+HEADERS = {
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+}
+
+# ──────────────── Vehicle Faults ──────────────── #
+FAULTS = {
+    "powertrain": ["Engine misfire", "Low oil pressure", "Overheating"],
+    "connectivity": ["CAN bus timeout", "Telematics unit offline", "OTA failure"],
+    "sensors": ["Lidar fault", "Temperature sensor drift", "GPS signal lost"]
+}
+
+ticket_log = []
+
+# ──────────────── Create Ticket ──────────────── #
+def create_servicenow_ticket(system, fault):
+    payload = {
+        "short_description": f"{system.capitalize()} fault: {fault}",
+        "description": f"Auto-generated fault from diagnostics tool.\nSystem: {system}\nFault: {fault}",
+        "urgency": "2",
+        "impact": "2"
+    }
+
+    response = requests.post(URL, auth=(USER, PWD), headers=HEADERS, data=json.dumps(payload))
+
+    if response.status_code == 201:
+        data = response.json()
+        ticket_number = data["result"]["number"]
+        print(f"✅ [ServiceNow] Ticket created: {ticket_number}")
+        return ticket_number
+    else:
+        print(f"❌ [ServiceNow] Failed to create ticket. Status: {response.status_code}")
+        print(response.text)
+        return None
+
+# ──────────────── Diagnostics ──────────────── #
+def run_diagnostics(system):
+    if system not in FAULTS:
+        print(f"[ERROR] Unknown system: {system}")
+        return None
+    print(f"\n🔍 Running diagnostics on {system} system...")
+    fault = random.choice(FAULTS[system])
+    print(f"[RESULT] Detected fault: {fault}")
+    return fault
+
+# ──────────────── Main CLI ──────────────── #
+def main():
+    print("\n=== Vehicle Diagnostics & Automation Tool ===")
+    print("Available systems: powertrain, connectivity, sensors")
+
+    while True:
+        cmd = input("\nEnter command (diagnose / summary / exit): ").strip().lower()
+
+        if cmd == "diagnose":
+            system = input("Enter system to diagnose: ").strip().lower()
+            fault = run_diagnostics(system)
+            if fault:
+                ticket = create_servicenow_ticket(system, fault)
+                if ticket:
+                    ticket_log.append({
+                        "system": system,
+                        "fault": fault,
+                        "ticket": ticket
+                    })
+
+        elif cmd == "summary":
+            print("\n=== Ticket Summary ===")
+            if not ticket_log:
+                print("No tickets created.")
+            else:
+                for t in ticket_log:
+                    print(json.dumps(t, indent=2))
+
+        elif cmd == "exit":
+            print("Goodbye.")
+            break
+
+        else:
+            print("[ERROR] Invalid command.")
+
+# ──────────────── Run Tool ──────────────── #
+if __name__ == "__main__":
+    main()
