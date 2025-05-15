@@ -1,0 +1,73 @@
+import sys
+import json
+import random
+
+# Simulated ticket database (in-memory)
+ticket_db = []
+
+# Vehicle system fault database (mock data)
+FAULTS = {
+    "powertrain": ["Engine misfire", "Low oil pressure", "Overheating"],
+    "connectivity": ["CAN bus timeout", "Telematics unit offline", "OTA failure"],
+    "sensors": ["Lidar fault", "Temperature sensor drift", "GPS signal lost"]
+}
+
+# Simulated ServiceNow API call
+def mock_servicenow_create_ticket(ticket):
+    ticket_id = f"SN-{random.randint(1000, 9999)}"
+    print(f"\n[ServiceNow] Ticket {ticket_id} created for: {ticket['issue']}")
+    return ticket_id
+
+# Diagnostics engine
+def run_diagnostics(system):
+    if system not in FAULTS:
+        print(f"[ERROR] Unknown system: {system}")
+        return None
+
+    print(f"\nRunning diagnostics on {system} system...")
+    fault = random.choice(FAULTS[system])
+    print(f"[RESULT] Detected fault: {fault}")
+    return fault
+
+# Ticket creation and logging
+def create_ticket(system, fault):
+    ticket = {
+        "system": system,
+        "issue": fault,
+        "status": "Open",
+    }
+    ticket_id = mock_servicenow_create_ticket(ticket)
+    ticket["ticket_id"] = ticket_id
+    ticket_db.append(ticket)
+
+# CLI loop
+def main():
+    print("=== Vehicle Diagnostics & Automation CLI ===")
+    print("Available systems: powertrain, connectivity, sensors")
+
+    while True:
+        cmd = input("\nEnter command (diagnose/summary/exit): ").strip().lower()
+
+        if cmd == "diagnose":
+            system = input("Enter vehicle system to diagnose: ").strip().lower()
+            fault = run_diagnostics(system)
+            if fault:
+                create_ticket(system, fault)
+
+        elif cmd == "summary":
+            print("\n=== Ticket Summary ===")
+            if not ticket_db:
+                print("No tickets generated.")
+            else:
+                for t in ticket_db:
+                    print(json.dumps(t, indent=2))
+
+        elif cmd == "exit":
+            print("Exiting tool.")
+            break
+
+        else:
+            print("[ERROR] Invalid command.")
+
+if __name__ == "__main__":
+    main()
